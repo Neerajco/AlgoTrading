@@ -4,37 +4,33 @@ import pandas_ta as ta
 import numpy as np
 import time
 import os
+import requests
 from datetime import datetime
 
-# --- 1. BINANCE DEMO (FUTURES) SETUP ---
-# Railway ke Variables se keys le raha hai
+# --- 1. CONFIGURATION (Variables from Railway) ---
 API_KEY = os.environ.get('BINANCE_API_KEY')
 SECRET_KEY = os.environ.get('BINANCE_SECRET_KEY')
+TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
+CHAT_ID = os.environ.get('CHAT_ID')
 
-# Futures Demo ke liye specific configuration
 exchange = ccxt.binance({
     'apiKey': API_KEY,
     'secret': SECRET_KEY,
     'enableRateLimit': True,
-    'options': {
-        'defaultType': 'future',
-        'adjustForTimeDifference': True,
-    },
+    'options': {'defaultType': 'future', 'adjustForTimeDifference': True},
 })
 
-# IMPORTANT: Demo Trading ke liye url ko manually 'test' par point karein
 exchange.set_sandbox_mode(True) 
 exchange.urls['api'] = exchange.urls['test'] 
 exchange.has['fetchCurrencies'] = False
 
-# --- 2. BOT SETTINGS ---
-SYMBOL = 'BTC/USDT'
-TIMEFRAME = '1h'
-COEFF = 4.0
-AP = 14
-TRADE_SIZE = 0.01
-
-current_position = None  
+# --- 2. TELEGRAM FUNCTION ---
+def send_telegram(msg):
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage?chat_id={CHAT_ID}&text={msg}"
+        requests.get(url)
+    except Exception as e:
+        print(f"❌ Telegram Error: {e}")
 
 # --- 3. ALPHATREND CALCULATION ---
 def calculate_alphatrend(df, coeff, ap):
@@ -58,8 +54,8 @@ def calculate_alphatrend(df, coeff, ap):
 def run_bot():
     global current_position
     try:
-        bars = exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=50)
-        df = pd.DataFrame(bars, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
+        df = pd.DataFrame(exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=50), 
+                          columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
         df = calculate_alphatrend(df, coeff=COEFF, ap=AP)
         
         at_curr = df['AlphaTrend'].iloc[-1]
@@ -69,30 +65,23 @@ def run_bot():
 
         if close_prev < at_prev and close_curr > at_curr:
             if current_position != "LONG":
-                print(f"🟢 BULLISH: Price {close_curr} > AT {at_curr}")
-                exchange.create_market_buy_order(SYMBOL, TRADE_SIZE)
+                msg = f"🟢 BULLISH: Price {close_curr} > AT {at_curr}"
+                print(msg)
+                exchange.create_market_buy_order('BTC/USDT', 0.01)
+                send_telegram(msg)
                 current_position = "LONG"
-                
         elif close_prev > at_prev and close_curr < at_curr:
             if current_position != "SHORT":
-                print(f"🔴 BEARISH: Price {close_curr} < AT {at_curr}")
-                exchange.create_market_sell_order(SYMBOL, TRADE_SIZE)
+                msg = f"🔴 BEARISH: Price {close_curr} < AT {at_curr}"
+                print(msg)
+                exchange.create_market_sell_order('BTC/USDT', 0.01)
+                send_telegram(msg)
                 current_position = "SHORT"
-        else:
-            print(f"⏸️ Monitoring... Price: {close_curr} | State: {current_position}")
     except Exception as e:
-        print(f"❌ Logic Error: {e}")
+        print(f"❌ Error: {e}")
 
 if __name__ == '__main__':
-    print("🚀 Initializing Bot...")
-    try:
-        # Markets load karein
-        exchange.load_markets()
-        print("✅ Connected Successfully to Futures Demo!")
-    except Exception as e:
-        print(f"❌ Connection Failed: {e}")
-        # Yahan exit mat karo, shayad retry mein chal jaye
-    
+    exchange.load_markets()
     while True:
         run_bot()
-        time.sleep(60) # 1 minute wait
+        time.sleep(60)
