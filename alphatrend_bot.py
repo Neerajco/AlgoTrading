@@ -20,7 +20,6 @@ exchange = ccxt.binance({
     },
 })
 
-# IMPORTANT: Demo trading ke liye Sandbox mode FALSE rakhein
 exchange.set_sandbox_mode(False) 
 exchange.has['fetchCurrencies'] = False
 
@@ -63,13 +62,11 @@ def run_bot():
     close_curr = df['Close'].iloc[-1]
     close_prev = df['Close'].iloc[-2]
 
-    # Signal Logic: Price cross above AT = BUY, Price cross below AT = SELL
     if close_prev < at_prev and close_curr > at_curr:
         if current_position != "LONG":
             print(f"🟢 BULLISH: Price {close_curr} crossed above AT {at_curr}")
             order = exchange.create_market_buy_order(SYMBOL, TRADE_SIZE)
             current_position = "LONG"
-            
     elif close_prev > at_prev and close_curr < at_curr:
         if current_position != "SHORT":
             print(f"🔴 BEARISH: Price {close_curr} crossed below AT {at_curr}")
@@ -78,8 +75,15 @@ def run_bot():
     else:
         print(f"⏸️ Monitoring... Price: {close_curr} | State: {current_position}")
 
+# --- 5. MAIN EXECUTION ---
 if __name__ == '__main__':
-    exchange.load_markets()
+    try:
+        exchange.load_markets() 
+        print("✅ Connected Successfully to Futures Demo Environment!")
+    except Exception as e:
+        print(f"❌ Connection Failed: {e}")
+        exit()
+
     while True:
         try:
             run_bot()
