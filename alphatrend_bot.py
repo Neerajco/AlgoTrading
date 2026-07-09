@@ -13,18 +13,19 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 CHAT_ID = os.environ.get('CHAT_ID')
 
 # --- 2. EXCHANGE INITIALIZATION ---
-# 'sandbox' hataya gaya hai, kyuki Demo Futures ke liye 'future' type hi kafi hai
 exchange = ccxt.binance({
     'apiKey': API_KEY,
     'secret': SECRET_KEY,
     'enableRateLimit': True,
     'options': {
         'defaultType': 'future',
-        # Demo trading ke liye ye line add karna zaroori hai
-        'broker': 'DEMO', 
+        'adjustForTimeDifference': True,
     },
 })
-exchange.set_sandbox_mode(False)
+
+# ✅ THE FINAL FIX: Naye Binance Demo Trading ke liye CCXT ka official method
+exchange.enable_demo_trading(True)
+
 # --- 3. BOT SETTINGS ---
 SYMBOL = 'BTC/USDT'
 TIMEFRAME = '1h'
@@ -99,13 +100,11 @@ def run_bot():
 if __name__ == '__main__':
     print("🚀 Initializing Bot...")
     try:
-        # Markets load karne ka robust tareeka
         exchange.load_markets()
-        print("✅ Connected Successfully to Binance Futures!")
+        print("✅ Connected Successfully to Binance Demo Trading!")
     except Exception as e:
         print(f"❌ Connection Failed: {e}")
     
     while True:
         run_bot()
         time.sleep(60)
-            
