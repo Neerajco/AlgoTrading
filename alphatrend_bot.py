@@ -23,7 +23,7 @@ exchange = ccxt.binance({
         'adjustForTimeDifference': True,
     },
 })
-
+exchange.set_sandbox_mode(False)
 # --- 3. BOT SETTINGS ---
 SYMBOL = 'BTC/USDT'
 TIMEFRAME = '1h'
