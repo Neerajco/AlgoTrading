@@ -5,15 +5,26 @@ import numpy as np
 import time
 import os
 import requests
-from datetime import datetime
 
-# --- 1. CONFIGURATION (Fetch from Railway Variables) ---
+# --- 1. CONFIGURATION ---
 API_KEY = os.environ.get('BINANCE_API_KEY')
 SECRET_KEY = os.environ.get('BINANCE_SECRET_KEY')
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 CHAT_ID = os.environ.get('CHAT_ID')
 
-# --- 2. GLOBAL BOT SETTINGS ---
+# --- 2. EXCHANGE INITIALIZATION ---
+# 'sandbox' hataya gaya hai, kyuki Demo Futures ke liye 'future' type hi kafi hai
+exchange = ccxt.binance({
+    'apiKey': API_KEY,
+    'secret': SECRET_KEY,
+    'enableRateLimit': True,
+    'options': {
+        'defaultType': 'future', 
+        'adjustForTimeDifference': True,
+    },
+})
+
+# --- 3. BOT SETTINGS ---
 SYMBOL = 'BTC/USDT'
 TIMEFRAME = '1h'
 COEFF = 4.0
@@ -21,27 +32,19 @@ AP = 14
 TRADE_SIZE = 0.01
 current_position = None  
 
-# Initialize Exchange
-exchange = ccxt.binance({
-    'apiKey': API_KEY,
-    'secret': SECRET_KEY,
-    'enableRateLimit': True,
-    'options': {'defaultType': 'future', 'adjustForTimeDifference': True},
-})
-
-exchange.set_sandbox_mode(True) 
-exchange.urls['api'] = exchange.urls['test'] 
-exchange.has['fetchCurrencies'] = False
-
-# --- 3. TELEGRAM FUNCTION ---
+# --- 4. TELEGRAM FUNCTION ---
 def send_telegram(msg):
+    if not TELEGRAM_TOKEN or not CHAT_ID:
+        print("⚠️ Telegram Config Missing!")
+        return
     try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage?chat_id={CHAT_ID}&text={msg}"
-        requests.get(url)
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        params = {'chat_id': CHAT_ID, 'text': msg}
+        requests.get(url, params=params)
     except Exception as e:
         print(f"❌ Telegram Error: {e}")
 
-# --- 4. ALPHATREND CALCULATION ---
+# --- 5. ALPHATREND LOGIC ---
 def calculate_alphatrend(df, coeff, ap):
     df = df.copy()
     df['TR'] = ta.true_range(df['High'], df['Low'], df['Close'])
@@ -59,7 +62,7 @@ def calculate_alphatrend(df, coeff, ap):
     df['AlphaTrend'] = alphatrend
     return df
 
-# --- 5. CORE LIVE LOGIC ---
+# --- 6. CORE LIVE LOGIC ---
 def run_bot():
     global current_position, SYMBOL, TIMEFRAME, COEFF, AP, TRADE_SIZE
     try:
@@ -88,17 +91,20 @@ def run_bot():
                 current_position = "SHORT"
         else:
             print(f"⏸️ Monitoring... Price: {close_curr} | State: {current_position}")
+            
     except Exception as e:
         print(f"❌ Logic Error: {e}")
 
 if __name__ == '__main__':
     print("🚀 Initializing Bot...")
     try:
+        # Markets load karne ka robust tareeka
         exchange.load_markets()
-        print("✅ Connected Successfully!")
+        print("✅ Connected Successfully to Binance Futures!")
     except Exception as e:
         print(f"❌ Connection Failed: {e}")
     
     while True:
         run_bot()
         time.sleep(60)
+            
