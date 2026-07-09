@@ -19,8 +19,9 @@ exchange = ccxt.binance({
     'secret': SECRET_KEY,
     'enableRateLimit': True,
     'options': {
-        'defaultType': 'future', 
-        'adjustForTimeDifference': True,
+        'defaultType': 'future',
+        # Demo trading ke liye ye line add karna zaroori hai
+        'broker': 'DEMO', 
     },
 })
 exchange.set_sandbox_mode(False)
